@@ -35,26 +35,30 @@ const DIFFICULTIES = {
         directions: ['top'],
         speed: 2,
         spawnIntervalMs: 1200,
-        maxActiveObstacles: 1
+        maxActiveObstacles: 1,
+        scoreRate: 0.5
     },
     MEDIUM: {
         directions: ['top', 'left', 'right'],
         speed: 3,
         spawnIntervalMs: 900,
-        maxActiveObstacles: 3
+        maxActiveObstacles: 3,
+        scoreRate: 1.0
     },
     HARD: {
         directions: ['top', 'left', 'right'],
         speed: 4.5,
         spawnIntervalMs: 500,
-        maxActiveObstacles: 6
+        maxActiveObstacles: 6,
+        scoreRate: 1.75
     },
     MASTER: {
         directions: ['top', 'bottom', 'left', 'right'],
         speed: 6,
         spawnIntervalMs: 350,
         maxActiveObstacles: 10,
-        isMaster: true
+        isMaster: true,
+        scoreRate: 3.0
     }
 };
 
@@ -62,11 +66,15 @@ const MASTER_INNER_MIN = 120;
 const MASTER_INNER_MAX = 480;
 
 // --- Game State ---
-let gameState = 'MENU'; // MENU, PLAYING, PAUSED, GAME_OVER
+let gameState = 'MENU';
 let currentConfig = null;
+let liveConfig = null;
 let currentDifficultyKey = '';
 let score = 0;
 let bestScore = 0;
+
+let escalations = 0;
+let escalationTextEndTime = 0;
 
 // Settings
 let isMuted = localStorage.getItem('isMuted') === 'true';
@@ -203,8 +211,8 @@ function setGameState(newState) {
     } else if (newState === 'PAUSED') {
         screens.PAUSED.classList.remove('hidden');
     } else if (newState === 'GAME_OVER') {
-        finalScoreEl.innerText = `Score: ${score}`;
-        bestScoreEl.innerText = `Best: ${bestScore}`;
+        finalScoreEl.innerText = `Score: ${Math.round(score)}`;
+        bestScoreEl.innerText = `Best: ${Math.round(bestScore)}`;
         screens.GAME_OVER.classList.remove('hidden');
     }
 }
@@ -213,27 +221,39 @@ function startGame(diffKey) {
     currentDifficultyKey = diffKey;
     currentConfig = DIFFICULTIES[diffKey];
     
+    // Create a live config instance we can mutate via escalations
+    liveConfig = {
+        directions: [...currentConfig.directions],
+        speed: currentConfig.speed,
+        spawnIntervalMs: currentConfig.spawnIntervalMs,
+        maxActiveObstacles: currentConfig.maxActiveObstacles,
+        isMaster: currentConfig.isMaster,
+        scoreRate: currentConfig.scoreRate
+    };
+    
     // Load difficulty-specific best score
-    bestScore = parseInt(localStorage.getItem(`bestScore_${diffKey}`)) || 0;
+    bestScore = parseFloat(localStorage.getItem(`bestScore_${diffKey}`)) || 0;
     
     player.x = CANVAS_WIDTH / 2 - player.width / 2;
     player.y = CANVAS_HEIGHT / 2 - player.height / 2;
     
     obstacles = [];
     score = 0;
+    escalations = 0;
     
     gameTimeAccumulator = 0;
     lastSpawnTime = 0;
     shakeEndTime = 0;
     playerPulseEndTime = 0;
+    escalationTextEndTime = 0;
     
     setGameState('PLAYING');
 }
 
-function spawnObstacle(config) {
-    if (obstacles.length >= config.maxActiveObstacles) return;
+function spawnObstacle() {
+    if (obstacles.length >= liveConfig.maxActiveObstacles) return;
 
-    const dir = config.directions[Math.floor(Math.random() * config.directions.length)];
+    const dir = liveConfig.directions[Math.floor(Math.random() * liveConfig.directions.length)];
     
     const obs = {
         width: 25,
@@ -253,26 +273,29 @@ function spawnObstacle(config) {
 
     if (dir === 'top') {
         obs.y = -obs.height;
-        obs.dy = config.speed;
     } else if (dir === 'bottom') {
         obs.y = CANVAS_HEIGHT;
-        obs.dy = -config.speed;
     } else if (dir === 'left') {
         obs.x = -obs.width;
-        obs.dx = config.speed;
     } else if (dir === 'right') {
         obs.x = CANVAS_WIDTH;
-        obs.dx = -config.speed;
     }
 
-    // For Master mode, aim the obstacle toward a random point inside the arena to prevent corner camping
-    if (config.isMaster) {
+    // After the first escalation, or in Master mode, apply inward angular velocity
+    if (liveConfig.isMaster || escalations > 0) {
+        // Target a random inner area so it passes near the middle
         const targetX = MASTER_INNER_MIN + Math.random() * (MASTER_INNER_MAX - MASTER_INNER_MIN);
         const targetY = MASTER_INNER_MIN + Math.random() * (MASTER_INNER_MAX - MASTER_INNER_MIN);
         
         const angle = Math.atan2(targetY - (obs.y + obs.height / 2), targetX - (obs.x + obs.width / 2));
-        obs.dx = Math.cos(angle) * config.speed;
-        obs.dy = Math.sin(angle) * config.speed;
+        obs.dx = Math.cos(angle) * liveConfig.speed;
+        obs.dy = Math.sin(angle) * liveConfig.speed;
+    } else {
+        // Pure straight lines for early unescalated difficulties
+        if (dir === 'top') obs.dy = liveConfig.speed;
+        if (dir === 'bottom') obs.dy = -liveConfig.speed;
+        if (dir === 'left') obs.dx = liveConfig.speed;
+        if (dir === 'right') obs.dx = -liveConfig.speed;
     }
 
     obstacles.push(obs);
@@ -283,6 +306,22 @@ function update(deltaTime) {
     if (gameState !== 'PLAYING') return;
 
     gameTimeAccumulator += deltaTime;
+
+    // --- Escalation System ---
+    const prevEscalations = escalations;
+    escalations = Math.floor(gameTimeAccumulator / 60000);
+
+    if (escalations > prevEscalations) {
+        // Escalate difficulty parameters
+        liveConfig.speed *= 1.15;
+        liveConfig.spawnIntervalMs = Math.max(200, liveConfig.spawnIntervalMs * 0.85);
+        
+        // Show escalation text flash
+        escalationTextEndTime = Date.now() + 1000;
+        
+        // Introduce all directions to force unpredictability
+        liveConfig.directions = ['top', 'bottom', 'left', 'right'];
+    }
 
     // --- Player Movement ---
     player.dx = 0;
@@ -296,7 +335,7 @@ function update(deltaTime) {
     player.x += player.dx;
     player.y += player.dy;
 
-    if (currentConfig.isMaster) {
+    if (liveConfig.isMaster) {
         if (player.x < MASTER_INNER_MIN) player.x = MASTER_INNER_MIN;
         if (player.x + player.width > MASTER_INNER_MAX) player.x = MASTER_INNER_MAX - player.width;
         if (player.y < MASTER_INNER_MIN) player.y = MASTER_INNER_MIN;
@@ -309,8 +348,8 @@ function update(deltaTime) {
     }
 
     // --- Obstacle Spawning ---
-    if (gameTimeAccumulator - lastSpawnTime > currentConfig.spawnIntervalMs) {
-        spawnObstacle(currentConfig);
+    if (gameTimeAccumulator - lastSpawnTime > liveConfig.spawnIntervalMs) {
+        spawnObstacle();
         lastSpawnTime = gameTimeAccumulator;
     }
 
@@ -359,15 +398,15 @@ function update(deltaTime) {
     }
 
     // --- Score Update ---
-    score = Math.floor(gameTimeAccumulator / 1000);
+    score = (gameTimeAccumulator / 1000) * liveConfig.scoreRate;
 }
 
-function getMilestone(s) {
-    if (s < 30) return { text: 'Beginner', color: '#7A8B69' };    // Sage green
-    if (s < 60) return { text: 'Survivor', color: '#D9722C' };    // Burnt orange
-    if (s < 120) return { text: 'Expert', color: '#C1440E' };      // Terracotta red
-    if (s < 180) return { text: 'Master', color: '#5C4433' };      // Deep umber
-    return { text: 'Legendary', color: '#E3B23C' };                // Mustard
+function getMilestone(seconds) {
+    if (seconds < 30) return { text: 'Beginner', color: '#7A8B69' };
+    if (seconds < 60) return { text: 'Survivor', color: '#D9722C' };
+    if (seconds < 120) return { text: 'Expert', color: '#C1440E' };
+    if (seconds < 180) return { text: 'Master', color: '#5C4433' };
+    return { text: 'Legendary', color: '#E3B23C' };
 }
 
 function draw() {
@@ -384,10 +423,9 @@ function draw() {
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // 2. Draw walls for Master mode
-    if (currentConfig && currentConfig.isMaster) {
+    if (liveConfig && liveConfig.isMaster) {
         ctx.fillStyle = COLORS.walls;
         
-        // Solid continuous walls without gaps
         ctx.fillRect(100, 100, 400, 20); // Top wall
         ctx.fillRect(100, 480, 400, 20); // Bottom wall
         ctx.fillRect(100, 120, 20, 360); // Left wall
@@ -429,10 +467,11 @@ function draw() {
         ctx.fillStyle = COLORS.accent;
         ctx.font = '24px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('Score: ' + score, 15, 35);
+        ctx.fillText('Score: ' + Math.round(score), 15, 35);
 
         // 6. Draw Milestone Badge
-        const badge = getMilestone(score);
+        const secondsSurvived = gameTimeAccumulator / 1000;
+        const badge = getMilestone(secondsSurvived);
         ctx.font = 'bold 16px sans-serif';
         ctx.textAlign = 'right';
         
@@ -440,16 +479,24 @@ function draw() {
         const badgeX = CANVAS_WIDTH - textWidth - 30;
         const badgeY = 15;
         
-        // Draw badge background
         ctx.fillStyle = badge.color;
         ctx.beginPath();
         ctx.roundRect(badgeX, badgeY, textWidth + 20, 26, 6);
         ctx.fill();
         
-        // Draw badge text
-        // Use contrasting text colors depending on the badge background
         ctx.fillStyle = (badge.text === 'Legendary') ? '#211D1B' : '#F4ECDD';
         ctx.fillText(badge.text, CANVAS_WIDTH - 20, badgeY + 18);
+        
+        // 7. Draw Escalation Text Flash
+        if (Date.now() < escalationTextEndTime) {
+            const alpha = Math.max(0, (escalationTextEndTime - Date.now()) / 1000);
+            ctx.fillStyle = COLORS.accent;
+            ctx.font = 'bold 36px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = alpha;
+            ctx.fillText('Speeding up!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 4);
+            ctx.globalAlpha = 1.0;
+        }
     }
 
     ctx.restore();
