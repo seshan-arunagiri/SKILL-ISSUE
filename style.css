@@ -11,6 +11,11 @@ body {
     align-items: center;
     min-height: 100vh;
     background-color: #111111;
+    background-image: 
+        radial-gradient(circle at center, rgba(227, 178, 60, 0.07) 0%, transparent 60%),
+        radial-gradient(rgba(244, 236, 221, 0.04) 1.5px, transparent 1.5px);
+    background-size: 100% 100%, 24px 24px;
+    background-position: center center, 0 0;
     font-family: sans-serif;
 }
 
@@ -18,7 +23,7 @@ body {
     position: relative;
     width: 600px;
     height: 600px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 10px 20px rgba(0, 0, 0, 0.6);
 }
 
 #gameCanvas {
