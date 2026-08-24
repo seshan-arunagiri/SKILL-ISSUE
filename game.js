@@ -9,10 +9,12 @@ const CANVAS_HEIGHT = canvas.height;
 const COLORS = {
     background: '#211D1B',
     player: '#D9722C',
-    obstacle: '#C1440E'
+    obstacle: '#C1440E',
+    text: '#F4ECDD'
 };
 
 // --- Game State ---
+let isGameOver = false;
 
 // Player object
 const player = {
@@ -57,6 +59,11 @@ function setupInput() {
     window.addEventListener('keydown', (e) => {
         if (keys.hasOwnProperty(e.key)) {
             keys[e.key] = true;
+        }
+
+        // Handle game restart
+        if (isGameOver && (e.key === 'r' || e.key === 'R')) {
+            resetGame();
         }
     });
 
@@ -110,6 +117,16 @@ function update() {
         obstacle.y = -obstacle.height;
         obstacle.x = Math.random() * (CANVAS_WIDTH - obstacle.width);
     }
+
+    // AABB Collision detection
+    if (
+        player.x < obstacle.x + obstacle.width &&
+        player.x + player.width > obstacle.x &&
+        player.y < obstacle.y + obstacle.height &&
+        player.y + player.height > obstacle.y
+    ) {
+        isGameOver = true;
+    }
 }
 
 /**
@@ -133,10 +150,50 @@ function draw() {
  * The main game loop function. Calls update, then draw, then schedules the next frame.
  */
 function gameLoop() {
+    if (isGameOver) {
+        drawGameOver();
+        return; // Stop the loop until reset
+    }
+
     update();
     draw();
     
     // Request the next frame
+    requestAnimationFrame(gameLoop);
+}
+
+/**
+ * Renders the Game Over screen and restart instructions.
+ */
+function drawGameOver() {
+    ctx.fillStyle = COLORS.text;
+    ctx.textAlign = 'center';
+    
+    // Draw "GAME OVER"
+    ctx.font = 'bold 48px sans-serif';
+    ctx.fillText('GAME OVER', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 20);
+    
+    // Draw Restart instruction
+    ctx.font = '24px sans-serif';
+    ctx.fillText('Press R to restart.', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30);
+}
+
+/**
+ * Resets the game state variables to start a new game.
+ */
+function resetGame() {
+    // Reset player position
+    player.x = CANVAS_WIDTH / 2 - player.width / 2;
+    player.y = CANVAS_HEIGHT / 2 - player.height / 2;
+    
+    // Reset obstacle position
+    obstacle.y = -obstacle.height;
+    obstacle.x = Math.random() * (CANVAS_WIDTH - obstacle.width);
+    
+    // Clear game over state
+    isGameOver = false;
+    
+    // Restart the game loop
     requestAnimationFrame(gameLoop);
 }
 
