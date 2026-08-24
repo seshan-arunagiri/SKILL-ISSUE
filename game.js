@@ -9,10 +9,16 @@ const CANVAS_HEIGHT = canvas.height;
 const COLORS = {
     background: '#211D1B',
     player: '#D9722C',
-    obstacle: '#C1440E'
+    obstacle: '#C1440E',
+    text: '#F4ECDD',
+    accent: '#E3B23C'
 };
 
 // --- Game State ---
+let isGameOver = false;
+let gameStartTime = Date.now();
+let score = 0;
+let bestScore = parseInt(localStorage.getItem('bestScore')) || 0;
 
 // Player object
 const player = {
@@ -57,6 +63,11 @@ function setupInput() {
     window.addEventListener('keydown', (e) => {
         if (keys.hasOwnProperty(e.key)) {
             keys[e.key] = true;
+        }
+
+        // Handle game restart
+        if (isGameOver && (e.key === 'r' || e.key === 'R')) {
+            resetGame();
         }
     });
 
@@ -110,6 +121,25 @@ function update() {
         obstacle.y = -obstacle.height;
         obstacle.x = Math.random() * (CANVAS_WIDTH - obstacle.width);
     }
+
+    // AABB Collision detection
+    if (
+        player.x < obstacle.x + obstacle.width &&
+        player.x + player.width > obstacle.x &&
+        player.y < obstacle.y + obstacle.height &&
+        player.y + player.height > obstacle.y
+    ) {
+        isGameOver = true;
+        
+        // Update best score if we beat it
+        if (score > bestScore) {
+            bestScore = score;
+            localStorage.setItem('bestScore', bestScore);
+        }
+    } else {
+        // Update score based on survival time (1 point per second)
+        score = Math.floor((Date.now() - gameStartTime) / 1000);
+    }
 }
 
 /**
@@ -127,16 +157,63 @@ function draw() {
     // 3. Draw the obstacle
     ctx.fillStyle = COLORS.obstacle;
     ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+
+    // 4. Draw the score
+    ctx.fillStyle = COLORS.accent;
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Score: ' + score, 15, 35);
 }
 
 /**
  * The main game loop function. Calls update, then draw, then schedules the next frame.
  */
 function gameLoop() {
+    if (isGameOver) {
+        drawGameOver();
+        return;
+    }
+
     update();
     draw();
     
     // Request the next frame
+    requestAnimationFrame(gameLoop);
+}
+
+/**
+ * Draws the Game Over screen with scores and restart instructions.
+ */
+function drawGameOver() {
+    ctx.fillStyle = COLORS.text;
+    ctx.textAlign = 'center';
+    
+    ctx.font = 'bold 48px sans-serif';
+    ctx.fillText('GAME OVER', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
+    
+    ctx.fillStyle = COLORS.accent;
+    ctx.font = '24px sans-serif';
+    ctx.fillText('Score: ' + score + '   Best: ' + bestScore, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 5);
+    
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '20px sans-serif';
+    ctx.fillText('Press R to restart.', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 50);
+}
+
+/**
+ * Resets the game state variables to start a new game.
+ */
+function resetGame() {
+    player.x = CANVAS_WIDTH / 2 - player.width / 2;
+    player.y = CANVAS_HEIGHT / 2 - player.height / 2;
+    
+    obstacle.y = -obstacle.height;
+    obstacle.x = Math.random() * (CANVAS_WIDTH - obstacle.width);
+    
+    isGameOver = false;
+    gameStartTime = Date.now();
+    score = 0;
+    
     requestAnimationFrame(gameLoop);
 }
 
