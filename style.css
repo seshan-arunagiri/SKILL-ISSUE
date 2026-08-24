@@ -11,12 +11,71 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #111111; /* Dark outer background to make the canvas pop */
+    background-color: #111111; /* Dark outer background */
     font-family: sans-serif;
+}
+
+#gameContainer {
+    position: relative;
+    width: 600px;
+    height: 600px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
 }
 
 /* Game canvas styling */
 #gameCanvas {
-    background-color: #211D1B; /* Charcoal background as requested */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8); /* Subtle shadow for depth */
+    background-color: #211D1B; /* Charcoal background */
+    display: block;
+}
+
+/* Start screen overlay */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(33, 29, 27, 0.9); /* Charcoal with opacity */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #F4ECDD;
+}
+
+.overlay h1 {
+    margin-bottom: 30px;
+    color: #E3B23C; /* Mustard */
+}
+
+.button-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.overlay button {
+    background-color: #D9722C; /* Burnt orange */
+    color: #F4ECDD; /* Warm cream */
+    border: 3px solid #5C4433; /* Deep umber */
+    padding: 15px 60px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color 0.2s, transform 0.1s, border-color 0.2s;
+    outline: none;
+}
+
+.overlay button:hover {
+    background-color: #C1440E; /* Terracotta red */
+    border-color: #7A8B69; /* Sage green */
+}
+
+.overlay button:active {
+    transform: scale(0.95);
+}
+
+.hidden {
+    display: none !important;
 }

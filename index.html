@@ -7,7 +7,17 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <canvas id="gameCanvas" width="600" height="600"></canvas>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        <div id="startScreen" class="overlay">
+            <h1>Select Difficulty</h1>
+            <div class="button-group">
+                <button data-diff="EASY">Easy</button>
+                <button data-diff="MEDIUM">Medium</button>
+                <button data-diff="HARD">Hard</button>
+            </div>
+        </div>
+    </div>
     <script src="game.js"></script>
 </body>
 </html>
