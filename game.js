@@ -13,7 +13,8 @@ const COLORS = {
     player: '#D9722C',
     obstacle: '#C1440E',
     text: '#F4ECDD',
-    accent: '#E3B23C'
+    accent: '#E3B23C',
+    walls: '#5C4433' // Deep umber
 };
 
 const DIFFICULTIES = {
@@ -34,8 +35,21 @@ const DIFFICULTIES = {
         speed: 4.5,
         spawnIntervalMs: 500,
         maxActiveObstacles: 6
+    },
+    MASTER: {
+        directions: ['top', 'bottom', 'left', 'right'],
+        speed: 6,
+        spawnIntervalMs: 350,
+        maxActiveObstacles: 10,
+        isMaster: true
     }
 };
+
+// Master level configuration
+const MASTER_GAP_START = 270;
+const MASTER_GAP_END = 330;
+const MASTER_INNER_MIN = 120;
+const MASTER_INNER_MAX = 480;
 
 // --- Game State ---
 let gameState = 'START'; // START, PLAYING, GAME_OVER
@@ -105,9 +119,6 @@ function setupInput() {
 
 // --- Game Logic ---
 
-/**
- * Initializes and starts a new game with the given difficulty configuration.
- */
 function startGame(config) {
     currentConfig = config;
     gameState = 'PLAYING';
@@ -128,9 +139,6 @@ function startGame(config) {
     startScreen.classList.add('hidden');
 }
 
-/**
- * Spawns a single obstacle based on the active difficulty config.
- */
 function spawnObstacle(config) {
     if (obstacles.length >= config.maxActiveObstacles) {
         return;
@@ -147,30 +155,49 @@ function spawnObstacle(config) {
         dy: 0
     };
 
+    if (config.isMaster) {
+        // Master logic: Reroll until within the gap
+        let valid = false;
+        while (!valid) {
+            if (dir === 'top' || dir === 'bottom') {
+                obs.x = Math.random() * (CANVAS_WIDTH - obs.width);
+                if (obs.x >= MASTER_GAP_START && obs.x + obs.width <= MASTER_GAP_END) {
+                    valid = true;
+                }
+            } else {
+                obs.y = Math.random() * (CANVAS_HEIGHT - obs.height);
+                if (obs.y >= MASTER_GAP_START && obs.y + obs.height <= MASTER_GAP_END) {
+                    valid = true;
+                }
+            }
+        }
+    } else {
+        // Normal logic
+        if (dir === 'top' || dir === 'bottom') {
+            obs.x = Math.random() * (CANVAS_WIDTH - obs.width);
+        } else {
+            obs.y = Math.random() * (CANVAS_HEIGHT - obs.height);
+        }
+    }
+
+    // Set origin edge and velocity
     if (dir === 'top') {
-        obs.x = Math.random() * (CANVAS_WIDTH - obs.width);
         obs.y = -obs.height;
         obs.dy = config.speed;
     } else if (dir === 'bottom') {
-        obs.x = Math.random() * (CANVAS_WIDTH - obs.width);
         obs.y = CANVAS_HEIGHT;
         obs.dy = -config.speed;
     } else if (dir === 'left') {
         obs.x = -obs.width;
-        obs.y = Math.random() * (CANVAS_HEIGHT - obs.height);
         obs.dx = config.speed;
     } else if (dir === 'right') {
         obs.x = CANVAS_WIDTH;
-        obs.y = Math.random() * (CANVAS_HEIGHT - obs.height);
         obs.dx = -config.speed;
     }
 
     obstacles.push(obs);
 }
 
-/**
- * Calculates new positions and applies game logic for the current frame.
- */
 function update() {
     if (gameState !== 'PLAYING') return;
 
@@ -187,10 +214,17 @@ function update() {
     player.y += player.dy;
 
     // Clamp player position
-    if (player.x < 0) player.x = 0;
-    if (player.x + player.width > CANVAS_WIDTH) player.x = CANVAS_WIDTH - player.width;
-    if (player.y < 0) player.y = 0;
-    if (player.y + player.height > CANVAS_HEIGHT) player.y = CANVAS_HEIGHT - player.height;
+    if (currentConfig.isMaster) {
+        if (player.x < MASTER_INNER_MIN) player.x = MASTER_INNER_MIN;
+        if (player.x + player.width > MASTER_INNER_MAX) player.x = MASTER_INNER_MAX - player.width;
+        if (player.y < MASTER_INNER_MIN) player.y = MASTER_INNER_MIN;
+        if (player.y + player.height > MASTER_INNER_MAX) player.y = MASTER_INNER_MAX - player.height;
+    } else {
+        if (player.x < 0) player.x = 0;
+        if (player.x + player.width > CANVAS_WIDTH) player.x = CANVAS_WIDTH - player.width;
+        if (player.y < 0) player.y = 0;
+        if (player.y + player.height > CANVAS_HEIGHT) player.y = CANVAS_HEIGHT - player.height;
+    }
 
     // --- Obstacle Spawning ---
     const now = Date.now();
@@ -233,9 +267,6 @@ function update() {
     }
 }
 
-/**
- * Clears the canvas and draws all game elements.
- */
 function draw() {
     // 1. Draw the background
     ctx.fillStyle = COLORS.background;
@@ -245,17 +276,38 @@ function draw() {
         return; // UI handles the start screen
     }
 
-    // 2. Draw the player
+    // 2. Draw walls for Master mode
+    if (currentConfig.isMaster) {
+        ctx.fillStyle = COLORS.walls;
+        
+        // Top Wall
+        ctx.fillRect(100, 100, 170, 20); // Left of gap
+        ctx.fillRect(330, 100, 170, 20); // Right of gap
+        
+        // Bottom Wall
+        ctx.fillRect(100, 480, 170, 20); // Left of gap
+        ctx.fillRect(330, 480, 170, 20); // Right of gap
+        
+        // Left Wall
+        ctx.fillRect(100, 120, 20, 150); // Top of gap
+        ctx.fillRect(100, 330, 20, 150); // Bottom of gap
+        
+        // Right Wall
+        ctx.fillRect(480, 120, 20, 150); // Top of gap
+        ctx.fillRect(480, 330, 20, 150); // Bottom of gap
+    }
+
+    // 3. Draw the player
     ctx.fillStyle = COLORS.player;
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
-    // 3. Draw the obstacles
+    // 4. Draw the obstacles
     ctx.fillStyle = COLORS.obstacle;
     for (const obs of obstacles) {
         ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
     }
 
-    // 4. Draw the score
+    // 5. Draw the score
     ctx.fillStyle = COLORS.accent;
     ctx.font = '24px sans-serif';
     ctx.textAlign = 'left';
@@ -266,31 +318,22 @@ function draw() {
     }
 }
 
-/**
- * Renders the Game Over screen and restart instructions.
- */
 function drawGameOver() {
     ctx.fillStyle = COLORS.text;
     ctx.textAlign = 'center';
     
-    // Draw "GAME OVER"
     ctx.font = 'bold 48px sans-serif';
     ctx.fillText('GAME OVER', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
     
-    // Draw Scores
     ctx.fillStyle = COLORS.accent;
     ctx.font = '24px sans-serif';
     ctx.fillText('Score: ' + score + '   Best: ' + bestScore, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 5);
     
-    // Draw Restart instruction
     ctx.fillStyle = COLORS.text;
     ctx.font = '20px sans-serif';
     ctx.fillText('Press R to restart.', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 50);
 }
 
-/**
- * The main game loop function.
- */
 function gameLoop() {
     update();
     draw();
