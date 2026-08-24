@@ -8,7 +8,8 @@ const CANVAS_HEIGHT = canvas.height;
 // Color Palette (from user requirements)
 const COLORS = {
     background: '#211D1B',
-    player: '#D9722C'
+    player: '#D9722C',
+    obstacle: '#C1440E'
 };
 
 // --- Game State ---
@@ -23,6 +24,15 @@ const player = {
     speed: 5,
     dx: 0, // X velocity
     dy: 0  // Y velocity
+};
+
+// Obstacle object
+const obstacle = {
+    width: 25,
+    height: 25,
+    x: Math.random() * (CANVAS_WIDTH - 25),
+    y: -25, // Start slightly off-screen
+    speed: 3
 };
 
 // Input state tracking
@@ -91,6 +101,15 @@ function update() {
     if (player.y + player.height > CANVAS_HEIGHT) {
         player.y = CANVAS_HEIGHT - player.height;
     }
+
+    // Update obstacle position
+    obstacle.y += obstacle.speed;
+
+    // Respawn obstacle if it goes past the bottom
+    if (obstacle.y > CANVAS_HEIGHT) {
+        obstacle.y = -obstacle.height;
+        obstacle.x = Math.random() * (CANVAS_WIDTH - obstacle.width);
+    }
 }
 
 /**
@@ -104,6 +123,10 @@ function draw() {
     // 2. Draw the player
     ctx.fillStyle = COLORS.player;
     ctx.fillRect(player.x, player.y, player.width, player.height);
+
+    // 3. Draw the obstacle
+    ctx.fillStyle = COLORS.obstacle;
+    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
 }
 
 /**
