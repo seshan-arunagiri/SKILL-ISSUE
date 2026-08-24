@@ -1,20 +1,30 @@
 // --- Game Configuration & Constants ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const startScreen = document.getElementById('startScreen');
-const difficultyButtons = document.querySelectorAll('.overlay button');
+
+const screens = {
+    MENU: document.getElementById('menuScreen'),
+    PAUSED: document.getElementById('pauseScreen'),
+    GAME_OVER: document.getElementById('gameOverScreen')
+};
+
+const finalScoreEl = document.getElementById('finalScore');
+const bestScoreEl = document.getElementById('bestScoreDisplay');
+const retryBtn = document.getElementById('retryBtn');
+const menuBtn = document.getElementById('menuBtn');
+const difficultyButtons = document.querySelectorAll('#menuScreen .menu-btn');
 
 const CANVAS_WIDTH = canvas.width;
 const CANVAS_HEIGHT = canvas.height;
 
-// Color Palette (from user requirements)
+// Color Palette
 const COLORS = {
     background: '#211D1B',
     player: '#D9722C',
     obstacle: '#C1440E',
     text: '#F4ECDD',
     accent: '#E3B23C',
-    walls: '#5C4433' // Deep umber
+    walls: '#5C4433'
 };
 
 const DIFFICULTIES = {
@@ -45,36 +55,35 @@ const DIFFICULTIES = {
     }
 };
 
-// Master level configuration
 const MASTER_GAP_START = 270;
 const MASTER_GAP_END = 330;
 const MASTER_INNER_MIN = 120;
 const MASTER_INNER_MAX = 480;
 
 // --- Game State ---
-let gameState = 'START'; // START, PLAYING, GAME_OVER
+let gameState = 'MENU'; // MENU, PLAYING, PAUSED, GAME_OVER
 let currentConfig = null;
-let isGameOver = false;
-let gameStartTime = 0;
-let lastSpawnTime = 0;
 let score = 0;
 let bestScore = parseInt(localStorage.getItem('bestScore')) || 0;
+
+// Timers
+let gameTimeAccumulator = 0;
+let lastFrameTime = 0;
+let lastSpawnTime = 0;
 
 // Player object
 const player = {
     width: 30,
     height: 30,
-    x: CANVAS_WIDTH / 2 - 15,
-    y: CANVAS_HEIGHT / 2 - 15,
+    x: 0,
+    y: 0,
     speed: 5,
     dx: 0,
     dy: 0
 };
 
-// Array to hold active obstacles
 let obstacles = [];
 
-// Input state tracking
 const keys = {
     ArrowUp: false,
     ArrowDown: false,
@@ -88,16 +97,19 @@ const keys = {
 
 
 // --- Initialization Methods ---
-
 function setupInput() {
     window.addEventListener('keydown', (e) => {
         if (keys.hasOwnProperty(e.key)) {
             keys[e.key] = true;
         }
 
-        // Handle game restart
-        if (gameState === 'GAME_OVER' && (e.key === 'r' || e.key === 'R')) {
-            startGame(currentConfig);
+        // Handle Escape to pause/resume
+        if (e.key === 'Escape') {
+            if (gameState === 'PLAYING') {
+                setGameState('PAUSED');
+            } else if (gameState === 'PAUSED') {
+                setGameState('PLAYING');
+            }
         }
     });
 
@@ -107,42 +119,64 @@ function setupInput() {
         }
     });
 
-    // UI Buttons for difficulty selection
+    // UI Buttons
     difficultyButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
             const diffKey = e.target.getAttribute('data-diff');
             startGame(DIFFICULTIES[diffKey]);
         });
     });
+
+    retryBtn.addEventListener('click', () => {
+        startGame(currentConfig);
+    });
+
+    menuBtn.addEventListener('click', () => {
+        setGameState('MENU');
+    });
 }
 
 
 // --- Game Logic ---
 
+function setGameState(newState) {
+    gameState = newState;
+    
+    // Hide all UI overlays
+    Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+
+    // Show appropriate overlay based on state
+    if (newState === 'MENU') {
+        screens.MENU.classList.remove('hidden');
+    } else if (newState === 'PAUSED') {
+        screens.PAUSED.classList.remove('hidden');
+    } else if (newState === 'GAME_OVER') {
+        finalScoreEl.innerText = `Score: ${score}`;
+        bestScoreEl.innerText = `Best: ${bestScore}`;
+        screens.GAME_OVER.classList.remove('hidden');
+    }
+    // PLAYING state has no full-screen HTML overlay
+}
+
 function startGame(config) {
     currentConfig = config;
-    gameState = 'PLAYING';
     
     // Reset player position
     player.x = CANVAS_WIDTH / 2 - player.width / 2;
     player.y = CANVAS_HEIGHT / 2 - player.height / 2;
     
-    // Clear obstacles
     obstacles = [];
-    
-    // Reset tracking variables
     score = 0;
-    gameStartTime = Date.now();
-    lastSpawnTime = Date.now();
     
-    // Hide UI
-    startScreen.classList.add('hidden');
+    // Reset time tracking
+    gameTimeAccumulator = 0;
+    lastSpawnTime = 0;
+    
+    setGameState('PLAYING');
 }
 
 function spawnObstacle(config) {
-    if (obstacles.length >= config.maxActiveObstacles) {
-        return;
-    }
+    if (obstacles.length >= config.maxActiveObstacles) return;
 
     const dir = config.directions[Math.floor(Math.random() * config.directions.length)];
     
@@ -156,23 +190,17 @@ function spawnObstacle(config) {
     };
 
     if (config.isMaster) {
-        // Master logic: Reroll until within the gap
         let valid = false;
         while (!valid) {
             if (dir === 'top' || dir === 'bottom') {
                 obs.x = Math.random() * (CANVAS_WIDTH - obs.width);
-                if (obs.x >= MASTER_GAP_START && obs.x + obs.width <= MASTER_GAP_END) {
-                    valid = true;
-                }
+                if (obs.x >= MASTER_GAP_START && obs.x + obs.width <= MASTER_GAP_END) valid = true;
             } else {
                 obs.y = Math.random() * (CANVAS_HEIGHT - obs.height);
-                if (obs.y >= MASTER_GAP_START && obs.y + obs.height <= MASTER_GAP_END) {
-                    valid = true;
-                }
+                if (obs.y >= MASTER_GAP_START && obs.y + obs.height <= MASTER_GAP_END) valid = true;
             }
         }
     } else {
-        // Normal logic
         if (dir === 'top' || dir === 'bottom') {
             obs.x = Math.random() * (CANVAS_WIDTH - obs.width);
         } else {
@@ -180,7 +208,6 @@ function spawnObstacle(config) {
         }
     }
 
-    // Set origin edge and velocity
     if (dir === 'top') {
         obs.y = -obs.height;
         obs.dy = config.speed;
@@ -198,8 +225,11 @@ function spawnObstacle(config) {
     obstacles.push(obs);
 }
 
-function update() {
+function update(deltaTime) {
     if (gameState !== 'PLAYING') return;
+
+    // Track active game time (skipping pauses)
+    gameTimeAccumulator += deltaTime;
 
     // --- Player Movement ---
     player.dx = 0;
@@ -213,7 +243,7 @@ function update() {
     player.x += player.dx;
     player.y += player.dy;
 
-    // Clamp player position
+    // Clamp player
     if (currentConfig.isMaster) {
         if (player.x < MASTER_INNER_MIN) player.x = MASTER_INNER_MIN;
         if (player.x + player.width > MASTER_INNER_MAX) player.x = MASTER_INNER_MAX - player.width;
@@ -227,10 +257,9 @@ function update() {
     }
 
     // --- Obstacle Spawning ---
-    const now = Date.now();
-    if (now - lastSpawnTime > currentConfig.spawnIntervalMs) {
+    if (gameTimeAccumulator - lastSpawnTime > currentConfig.spawnIntervalMs) {
         spawnObstacle(currentConfig);
-        lastSpawnTime = now;
+        lastSpawnTime = gameTimeAccumulator;
     }
 
     // --- Obstacle Movement & Collision ---
@@ -253,7 +282,7 @@ function update() {
             player.y < obs.y + obs.height &&
             player.y + player.height > obs.y
         ) {
-            gameState = 'GAME_OVER';
+            setGameState('GAME_OVER');
             if (score > bestScore) {
                 bestScore = score;
                 localStorage.setItem('bestScore', bestScore);
@@ -262,9 +291,7 @@ function update() {
     }
 
     // --- Score Update ---
-    if (gameState === 'PLAYING') {
-        score = Math.floor((Date.now() - gameStartTime) / 1000);
-    }
+    score = Math.floor(gameTimeAccumulator / 1000);
 }
 
 function draw() {
@@ -272,12 +299,8 @@ function draw() {
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    if (gameState === 'START') {
-        return; // UI handles the start screen
-    }
-
     // 2. Draw walls for Master mode
-    if (currentConfig.isMaster) {
+    if (currentConfig && currentConfig.isMaster) {
         ctx.fillStyle = COLORS.walls;
         
         // Top Wall
@@ -297,6 +320,9 @@ function draw() {
         ctx.fillRect(480, 330, 20, 150); // Bottom of gap
     }
 
+    // Don't draw player and obstacles if we are in the main menu
+    if (gameState === 'MENU') return;
+
     // 3. Draw the player
     ctx.fillStyle = COLORS.player;
     ctx.fillRect(player.x, player.y, player.width, player.height);
@@ -312,34 +338,22 @@ function draw() {
     ctx.font = '24px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText('Score: ' + score, 15, 35);
-
-    if (gameState === 'GAME_OVER') {
-        drawGameOver();
-    }
 }
 
-function drawGameOver() {
-    ctx.fillStyle = COLORS.text;
-    ctx.textAlign = 'center';
+function gameLoop(timestamp) {
+    if (!lastFrameTime) lastFrameTime = timestamp;
     
-    ctx.font = 'bold 48px sans-serif';
-    ctx.fillText('GAME OVER', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 40);
-    
-    ctx.fillStyle = COLORS.accent;
-    ctx.font = '24px sans-serif';
-    ctx.fillText('Score: ' + score + '   Best: ' + bestScore, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 5);
-    
-    ctx.fillStyle = COLORS.text;
-    ctx.font = '20px sans-serif';
-    ctx.fillText('Press R to restart.', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 50);
-}
+    // Calculate delta time
+    const deltaTime = timestamp - lastFrameTime;
+    lastFrameTime = timestamp;
 
-function gameLoop() {
-    update();
+    update(deltaTime);
     draw();
+    
     requestAnimationFrame(gameLoop);
 }
 
 // --- Start the Game ---
 setupInput();
+setGameState('MENU'); // Initialize properly to MENU state
 requestAnimationFrame(gameLoop);

@@ -9,13 +9,32 @@
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas" width="600" height="600"></canvas>
-        <div id="startScreen" class="overlay">
+        
+        <!-- MENU SCREEN -->
+        <div id="menuScreen" class="overlay">
             <h1>Select Difficulty</h1>
             <div class="button-group">
-                <button data-diff="EASY">Easy</button>
-                <button data-diff="MEDIUM">Medium</button>
-                <button data-diff="HARD">Hard</button>
-                <button data-diff="MASTER">Master</button>
+                <button class="menu-btn" data-diff="EASY">Easy</button>
+                <button class="menu-btn" data-diff="MEDIUM">Medium</button>
+                <button class="menu-btn" data-diff="HARD">Hard</button>
+                <button class="menu-btn" data-diff="MASTER">Master</button>
+            </div>
+        </div>
+
+        <!-- PAUSE SCREEN -->
+        <div id="pauseScreen" class="overlay hidden">
+            <h1>Paused</h1>
+            <p>Esc to resume</p>
+        </div>
+
+        <!-- GAME OVER SCREEN -->
+        <div id="gameOverScreen" class="overlay hidden">
+            <h1>GAME OVER</h1>
+            <h2 id="finalScore">Score: 0</h2>
+            <h3 id="bestScoreDisplay">Best: 0</h3>
+            <div class="button-group">
+                <button id="retryBtn" class="menu-btn">Retry Same Level</button>
+                <button id="menuBtn" class="menu-btn">Play Again (Menu)</button>
             </div>
         </div>
     </div>
