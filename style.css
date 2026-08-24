@@ -1,0 +1,22 @@
+/* Reset default margins and padding */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Center the canvas visually on the page */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #111111; /* Dark outer background to make the canvas pop */
+    font-family: sans-serif;
+}
+
+/* Game canvas styling */
+#gameCanvas {
+    background-color: #211D1B; /* Charcoal background as requested */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8); /* Subtle shadow for depth */
+}
