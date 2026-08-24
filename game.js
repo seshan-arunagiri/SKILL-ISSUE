@@ -22,7 +22,9 @@ const CANVAS_HEIGHT = canvas.height;
 const COLORS = {
     background: '#211D1B',
     player: '#D9722C',
-    obstacle: '#C1440E',
+    playerOutline: '#F4ECDD',
+    obstacle: '#A63A3A',
+    obstacleOutline: '#6E1F1F',
     text: '#F4ECDD',
     accent: '#E3B23C',
     walls: '#5C4433'
@@ -56,8 +58,6 @@ const DIFFICULTIES = {
     }
 };
 
-const MASTER_GAP_START = 270;
-const MASTER_GAP_END = 330;
 const MASTER_INNER_MIN = 120;
 const MASTER_INNER_MAX = 480;
 
@@ -245,23 +245,10 @@ function spawnObstacle(config) {
         hasCausedCloseCall: false
     };
 
-    if (config.isMaster) {
-        let valid = false;
-        while (!valid) {
-            if (dir === 'top' || dir === 'bottom') {
-                obs.x = Math.random() * (CANVAS_WIDTH - obs.width);
-                if (obs.x >= MASTER_GAP_START && obs.x + obs.width <= MASTER_GAP_END) valid = true;
-            } else {
-                obs.y = Math.random() * (CANVAS_HEIGHT - obs.height);
-                if (obs.y >= MASTER_GAP_START && obs.y + obs.height <= MASTER_GAP_END) valid = true;
-            }
-        }
+    if (dir === 'top' || dir === 'bottom') {
+        obs.x = Math.random() * (CANVAS_WIDTH - obs.width);
     } else {
-        if (dir === 'top' || dir === 'bottom') {
-            obs.x = Math.random() * (CANVAS_WIDTH - obs.width);
-        } else {
-            obs.y = Math.random() * (CANVAS_HEIGHT - obs.height);
-        }
+        obs.y = Math.random() * (CANVAS_HEIGHT - obs.height);
     }
 
     if (dir === 'top') {
@@ -276,6 +263,16 @@ function spawnObstacle(config) {
     } else if (dir === 'right') {
         obs.x = CANVAS_WIDTH;
         obs.dx = -config.speed;
+    }
+
+    // For Master mode, aim the obstacle toward a random point inside the arena to prevent corner camping
+    if (config.isMaster) {
+        const targetX = MASTER_INNER_MIN + Math.random() * (MASTER_INNER_MAX - MASTER_INNER_MIN);
+        const targetY = MASTER_INNER_MIN + Math.random() * (MASTER_INNER_MAX - MASTER_INNER_MIN);
+        
+        const angle = Math.atan2(targetY - (obs.y + obs.height / 2), targetX - (obs.x + obs.width / 2));
+        obs.dx = Math.cos(angle) * config.speed;
+        obs.dy = Math.sin(angle) * config.speed;
     }
 
     obstacles.push(obs);
@@ -390,14 +387,11 @@ function draw() {
     if (currentConfig && currentConfig.isMaster) {
         ctx.fillStyle = COLORS.walls;
         
-        ctx.fillRect(100, 100, 170, 20); // Top left
-        ctx.fillRect(330, 100, 170, 20); // Top right
-        ctx.fillRect(100, 480, 170, 20); // Bottom left
-        ctx.fillRect(330, 480, 170, 20); // Bottom right
-        ctx.fillRect(100, 120, 20, 150); // Left top
-        ctx.fillRect(100, 330, 20, 150); // Left bottom
-        ctx.fillRect(480, 120, 20, 150); // Right top
-        ctx.fillRect(480, 330, 20, 150); // Right bottom
+        // Solid continuous walls without gaps
+        ctx.fillRect(100, 100, 400, 20); // Top wall
+        ctx.fillRect(100, 480, 400, 20); // Bottom wall
+        ctx.fillRect(100, 120, 20, 360); // Left wall
+        ctx.fillRect(480, 120, 20, 360); // Right wall
     }
 
     if (gameState !== 'MENU') {
@@ -417,11 +411,18 @@ function draw() {
             py -= (pHeight - player.height) / 2;
         }
         ctx.fillRect(px, py, pWidth, pHeight);
+        
+        ctx.strokeStyle = COLORS.playerOutline;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px, py, pWidth, pHeight);
 
         // 4. Draw the obstacles
         ctx.fillStyle = COLORS.obstacle;
+        ctx.strokeStyle = COLORS.obstacleOutline;
+        ctx.lineWidth = 1;
         for (const obs of obstacles) {
             ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
         }
 
         // 5. Draw the score
