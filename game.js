@@ -36,21 +36,24 @@ const DIFFICULTIES = {
         speed: 2,
         spawnIntervalMs: 1200,
         maxActiveObstacles: 1,
-        scoreRate: 0.5
+        scoreRate: 0.5,
+        predictiveChance: 0
     },
     MEDIUM: {
         directions: ['top', 'left', 'right'],
         speed: 3,
         spawnIntervalMs: 900,
         maxActiveObstacles: 3,
-        scoreRate: 1.0
+        scoreRate: 1.0,
+        predictiveChance: 0.25
     },
     HARD: {
         directions: ['top', 'left', 'right'],
         speed: 4.5,
         spawnIntervalMs: 500,
         maxActiveObstacles: 6,
-        scoreRate: 1.75
+        scoreRate: 1.75,
+        predictiveChance: 0.50
     },
     MASTER: {
         directions: ['top', 'bottom', 'left', 'right'],
@@ -58,7 +61,8 @@ const DIFFICULTIES = {
         spawnIntervalMs: 350,
         maxActiveObstacles: 10,
         isMaster: true,
-        scoreRate: 3.0
+        scoreRate: 3.0,
+        predictiveChance: 0.80
     }
 };
 
@@ -221,17 +225,16 @@ function startGame(diffKey) {
     currentDifficultyKey = diffKey;
     currentConfig = DIFFICULTIES[diffKey];
     
-    // Create a live config instance we can mutate via escalations
     liveConfig = {
         directions: [...currentConfig.directions],
         speed: currentConfig.speed,
         spawnIntervalMs: currentConfig.spawnIntervalMs,
         maxActiveObstacles: currentConfig.maxActiveObstacles,
         isMaster: currentConfig.isMaster,
-        scoreRate: currentConfig.scoreRate
+        scoreRate: currentConfig.scoreRate,
+        predictiveChance: currentConfig.predictiveChance
     };
     
-    // Load difficulty-specific best score
     bestScore = parseFloat(localStorage.getItem(`bestScore_${diffKey}`)) || 0;
     
     player.x = CANVAS_WIDTH / 2 - player.width / 2;
@@ -281,9 +284,36 @@ function spawnObstacle() {
         obs.x = CANVAS_WIDTH;
     }
 
-    // After the first escalation, or in Master mode, apply inward angular velocity
-    if (liveConfig.isMaster || escalations > 0) {
-        // Target a random inner area so it passes near the middle
+    const isPredictive = Math.random() < liveConfig.predictiveChance;
+
+    if (isPredictive) {
+        // Predictive targeting: "leading shot" intercept calculation
+        const playerCenterX = player.x + player.width / 2;
+        const playerCenterY = player.y + player.height / 2;
+        const obsCenterX = obs.x + obs.width / 2;
+        const obsCenterY = obs.y + obs.height / 2;
+
+        const dist = Math.hypot(playerCenterX - obsCenterX, playerCenterY - obsCenterY);
+        const travelTimeFrames = dist / liveConfig.speed;
+
+        let targetX = playerCenterX + player.dx * travelTimeFrames;
+        let targetY = playerCenterY + player.dy * travelTimeFrames;
+
+        // Clamp the predicted target point to the active arena bounds
+        const minX = liveConfig.isMaster ? MASTER_INNER_MIN : 0;
+        const maxX = liveConfig.isMaster ? MASTER_INNER_MAX : CANVAS_WIDTH;
+        const minY = liveConfig.isMaster ? MASTER_INNER_MIN : 0;
+        const maxY = liveConfig.isMaster ? MASTER_INNER_MAX : CANVAS_HEIGHT;
+
+        targetX = Math.max(minX, Math.min(maxX, targetX));
+        targetY = Math.max(minY, Math.min(maxY, targetY));
+
+        const angle = Math.atan2(targetY - obsCenterY, targetX - obsCenterX);
+        obs.dx = Math.cos(angle) * liveConfig.speed;
+        obs.dy = Math.sin(angle) * liveConfig.speed;
+
+    } else if (liveConfig.isMaster || escalations > 0) {
+        // Non-predictive angled: Target a random inner area so it passes near the middle
         const targetX = MASTER_INNER_MIN + Math.random() * (MASTER_INNER_MAX - MASTER_INNER_MIN);
         const targetY = MASTER_INNER_MIN + Math.random() * (MASTER_INNER_MAX - MASTER_INNER_MIN);
         
@@ -312,14 +342,11 @@ function update(deltaTime) {
     escalations = Math.floor(gameTimeAccumulator / 60000);
 
     if (escalations > prevEscalations) {
-        // Escalate difficulty parameters
         liveConfig.speed *= 1.15;
         liveConfig.spawnIntervalMs = Math.max(200, liveConfig.spawnIntervalMs * 0.85);
         
-        // Show escalation text flash
         escalationTextEndTime = Date.now() + 1000;
         
-        // Introduce all directions to force unpredictability
         liveConfig.directions = ['top', 'bottom', 'left', 'right'];
     }
 
