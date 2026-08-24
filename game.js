@@ -2,12 +2,22 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+
+const gameContainer = document.getElementById('gameContainer');
+
 const screens = {
+    HOME: document.getElementById('homeScreen'),
     MENU: document.getElementById('menuScreen'),
     PAUSED: document.getElementById('pauseScreen'),
     GAME_OVER: document.getElementById('gameOverScreen')
 };
 
+const playBtn = document.getElementById('playBtn');
+const highScoreBtn = document.getElementById('highScoreBtn');
+const menuBackBtn = document.getElementById('menuBackBtn');
+const pauseBackBtn = document.getElementById('pauseBackBtn');
 const finalScoreEl = document.getElementById('finalScore');
 const bestScoreEl = document.getElementById('bestScoreDisplay');
 const retryBtn = document.getElementById('retryBtn');
@@ -70,7 +80,7 @@ const MASTER_INNER_MIN = 120;
 const MASTER_INNER_MAX = 480;
 
 // --- Game State ---
-let gameState = 'MENU';
+let gameState = 'HOME'; // HOME, MENU, PLAYING, PAUSED, GAME_OVER
 let currentConfig = null;
 let liveConfig = null;
 let currentDifficultyKey = '';
@@ -91,7 +101,7 @@ let lastSpawnTime = 0;
 let shakeEndTime = 0;
 let playerPulseEndTime = 0;
 
-// Player object
+// Objects
 const player = {
     width: 30,
     height: 30,
@@ -103,6 +113,7 @@ const player = {
 };
 
 let obstacles = [];
+let homeObstacles = []; // Decorative background squares for HOME screen
 
 const keys = {
     ArrowUp: false,
@@ -159,6 +170,13 @@ function playSound(type) {
 
 
 // --- Initialization Methods ---
+function resizeBgCanvas() {
+    bgCanvas.width = window.innerWidth;
+    bgCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeBgCanvas);
+resizeBgCanvas();
+
 function setupInput() {
     window.addEventListener('keydown', (e) => {
         if (keys.hasOwnProperty(e.key)) {
@@ -180,14 +198,40 @@ function setupInput() {
         }
     });
 
+    // Landing Page
+    playBtn.addEventListener('click', () => {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        setGameState('MENU');
+    });
+
+    highScoreBtn.addEventListener('click', () => {
+        // Reserved for Phase 16
+        console.log("High Score Menu upcoming...");
+    });
+
+    // Difficulty Menu
+    menuBackBtn.addEventListener('click', () => {
+        setGameState('HOME');
+    });
+
     difficultyButtons.forEach(btn => {
         btn.addEventListener('click', (e) => {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
             const diffKey = e.target.getAttribute('data-diff');
             startGame(diffKey);
         });
     });
 
+    muteToggle.addEventListener('change', (e) => {
+        isMuted = e.target.checked;
+        localStorage.setItem('isMuted', isMuted);
+    });
+
+    // Pause Screen
+    pauseBackBtn.addEventListener('click', () => {
+        setGameState('MENU');
+    });
+
+    // Game Over Screen
     retryBtn.addEventListener('click', () => {
         startGame(currentDifficultyKey);
     });
@@ -195,11 +239,20 @@ function setupInput() {
     menuBtn.addEventListener('click', () => {
         setGameState('MENU');
     });
+}
 
-    muteToggle.addEventListener('change', (e) => {
-        isMuted = e.target.checked;
-        localStorage.setItem('isMuted', isMuted);
-    });
+function initHomeObstacles() {
+    homeObstacles = [];
+    for (let i = 0; i < 8; i++) {
+        homeObstacles.push({
+            x: Math.random() * bgCanvas.width,
+            y: Math.random() * bgCanvas.height,
+            dx: (Math.random() - 0.5) * 1.5,
+            dy: (Math.random() - 0.5) * 1.5,
+            width: 25,
+            height: 25
+        });
+    }
 }
 
 
@@ -210,14 +263,21 @@ function setGameState(newState) {
     
     Object.values(screens).forEach(screen => screen.classList.add('hidden'));
 
-    if (newState === 'MENU') {
-        screens.MENU.classList.remove('hidden');
-    } else if (newState === 'PAUSED') {
-        screens.PAUSED.classList.remove('hidden');
-    } else if (newState === 'GAME_OVER') {
-        finalScoreEl.innerText = `Score: ${Math.round(score)}`;
-        bestScoreEl.innerText = `Best: ${Math.round(bestScore)}`;
-        screens.GAME_OVER.classList.remove('hidden');
+    if (newState === 'HOME') {
+        initHomeObstacles();
+        screens.HOME.classList.remove('hidden');
+        gameContainer.classList.add('hidden'); // Hide game card
+    } else {
+        gameContainer.classList.remove('hidden'); // Show game card
+        if (newState === 'MENU') {
+            screens.MENU.classList.remove('hidden');
+        } else if (newState === 'PAUSED') {
+            screens.PAUSED.classList.remove('hidden');
+        } else if (newState === 'GAME_OVER') {
+            finalScoreEl.innerText = `Score: ${Math.round(score)}`;
+            bestScoreEl.innerText = `Best: ${Math.round(bestScore)}`;
+            screens.GAME_OVER.classList.remove('hidden');
+        }
     }
 }
 
@@ -287,7 +347,6 @@ function spawnObstacle() {
     const isPredictive = Math.random() < liveConfig.predictiveChance;
 
     if (isPredictive) {
-        // Predictive targeting: "leading shot" intercept calculation
         const playerCenterX = player.x + player.width / 2;
         const playerCenterY = player.y + player.height / 2;
         const obsCenterX = obs.x + obs.width / 2;
@@ -299,7 +358,6 @@ function spawnObstacle() {
         let targetX = playerCenterX + player.dx * travelTimeFrames;
         let targetY = playerCenterY + player.dy * travelTimeFrames;
 
-        // Clamp the predicted target point to the active arena bounds
         const minX = liveConfig.isMaster ? MASTER_INNER_MIN : 0;
         const maxX = liveConfig.isMaster ? MASTER_INNER_MAX : CANVAS_WIDTH;
         const minY = liveConfig.isMaster ? MASTER_INNER_MIN : 0;
@@ -313,7 +371,6 @@ function spawnObstacle() {
         obs.dy = Math.sin(angle) * liveConfig.speed;
 
     } else if (liveConfig.isMaster || escalations > 0) {
-        // Non-predictive angled: Target a random inner area so it passes near the middle
         const targetX = MASTER_INNER_MIN + Math.random() * (MASTER_INNER_MAX - MASTER_INNER_MIN);
         const targetY = MASTER_INNER_MIN + Math.random() * (MASTER_INNER_MAX - MASTER_INNER_MIN);
         
@@ -321,7 +378,6 @@ function spawnObstacle() {
         obs.dx = Math.cos(angle) * liveConfig.speed;
         obs.dy = Math.sin(angle) * liveConfig.speed;
     } else {
-        // Pure straight lines for early unescalated difficulties
         if (dir === 'top') obs.dy = liveConfig.speed;
         if (dir === 'bottom') obs.dy = -liveConfig.speed;
         if (dir === 'left') obs.dx = liveConfig.speed;
@@ -333,6 +389,21 @@ function spawnObstacle() {
 }
 
 function update(deltaTime) {
+    // Background simulation for HOME screen across full viewport
+    if (gameState === 'HOME') {
+        for (const obs of homeObstacles) {
+            obs.x += obs.dx;
+            obs.y += obs.dy;
+            
+            // Wrap around continuously within the full viewport
+            if (obs.x > bgCanvas.width) obs.x = -obs.width;
+            if (obs.x < -obs.width) obs.x = bgCanvas.width;
+            if (obs.y > bgCanvas.height) obs.y = -obs.height;
+            if (obs.y < -obs.height) obs.y = bgCanvas.height;
+        }
+        return; 
+    }
+
     if (gameState !== 'PLAYING') return;
 
     gameTimeAccumulator += deltaTime;
@@ -344,9 +415,7 @@ function update(deltaTime) {
     if (escalations > prevEscalations) {
         liveConfig.speed *= 1.15;
         liveConfig.spawnIntervalMs = Math.max(200, liveConfig.spawnIntervalMs * 0.85);
-        
         escalationTextEndTime = Date.now() + 1000;
-        
         liveConfig.directions = ['top', 'bottom', 'left', 'right'];
     }
 
@@ -437,6 +506,20 @@ function getMilestone(seconds) {
 }
 
 function draw() {
+    // 1. Draw full-viewport background canvas (Home screen animations)
+    bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+    if (gameState === 'HOME') {
+        bgCtx.fillStyle = COLORS.obstacle;
+        bgCtx.strokeStyle = COLORS.obstacleOutline;
+        bgCtx.lineWidth = 1;
+        for (const obs of homeObstacles) {
+            bgCtx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            bgCtx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+        }
+        return; // Halt main game canvas rendering when on Home screen
+    }
+
+    // --- Main Game Canvas Rendering ---
     ctx.save();
 
     if (gameState === 'GAME_OVER' && Date.now() < shakeEndTime) {
@@ -445,11 +528,11 @@ function draw() {
         ctx.translate(dx, dy);
     }
 
-    // 1. Draw the background
+    // Background of game card
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // 2. Draw walls for Master mode
+    // Walls for Master mode
     if (liveConfig && liveConfig.isMaster) {
         ctx.fillStyle = COLORS.walls;
         
@@ -460,7 +543,7 @@ function draw() {
     }
 
     if (gameState !== 'MENU') {
-        // 3. Draw the player
+        // Player
         ctx.fillStyle = COLORS.player;
         let pWidth = player.width;
         let pHeight = player.height;
@@ -481,7 +564,7 @@ function draw() {
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, pWidth, pHeight);
 
-        // 4. Draw the obstacles
+        // Obstacles
         ctx.fillStyle = COLORS.obstacle;
         ctx.strokeStyle = COLORS.obstacleOutline;
         ctx.lineWidth = 1;
@@ -490,13 +573,13 @@ function draw() {
             ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
         }
 
-        // 5. Draw the score
+        // Score
         ctx.fillStyle = COLORS.accent;
         ctx.font = '24px sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText('Score: ' + Math.round(score), 15, 35);
 
-        // 6. Draw Milestone Badge
+        // Milestone Badge
         const secondsSurvived = gameTimeAccumulator / 1000;
         const badge = getMilestone(secondsSurvived);
         ctx.font = 'bold 16px sans-serif';
@@ -514,7 +597,7 @@ function draw() {
         ctx.fillStyle = (badge.text === 'Legendary') ? '#211D1B' : '#F4ECDD';
         ctx.fillText(badge.text, CANVAS_WIDTH - 20, badgeY + 18);
         
-        // 7. Draw Escalation Text Flash
+        // Escalation Text Flash
         if (Date.now() < escalationTextEndTime) {
             const alpha = Math.max(0, (escalationTextEndTime - Date.now()) / 1000);
             ctx.fillStyle = COLORS.accent;
@@ -543,5 +626,5 @@ function gameLoop(timestamp) {
 
 // --- Start the Game ---
 setupInput();
-setGameState('MENU');
+setGameState('HOME');
 requestAnimationFrame(gameLoop);

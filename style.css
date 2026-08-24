@@ -17,6 +17,17 @@ body {
     background-size: 100% 100%, 24px 24px;
     background-position: center center, 0 0;
     font-family: sans-serif;
+    overflow: hidden; /* Prevent scrollbars from full viewport background canvas */
+}
+
+#bgCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    pointer-events: none;
 }
 
 #gameContainer {
@@ -24,6 +35,7 @@ body {
     width: 600px;
     height: 600px;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 10px 20px rgba(0, 0, 0, 0.6);
+    z-index: 5;
 }
 
 #gameCanvas {
@@ -44,6 +56,48 @@ body {
     justify-content: center;
     align-items: center;
     color: #F4ECDD;
+}
+
+/* Full Screen Home Overlay */
+.full-screen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    background: transparent;
+}
+
+.logo {
+    margin-bottom: 20px;
+}
+
+.title {
+    color: #E3B23C !important;
+    font-size: 72px !important;
+    letter-spacing: 4px;
+    margin-bottom: 5px !important;
+}
+
+.tagline {
+    font-size: 24px;
+    color: #F4ECDD;
+    margin-bottom: 30px;
+    font-style: italic;
+}
+
+.about-block {
+    max-width: 500px;
+    text-align: center;
+    color: rgba(244, 236, 221, 0.8);
+    font-size: 16px;
+    line-height: 1.5;
+    margin-bottom: 40px;
 }
 
 .overlay h1 {
@@ -69,32 +123,73 @@ body {
     color: #F4ECDD;
 }
 
-.button-group {
+.button-group, .home-btn-group {
     display: flex;
-    flex-direction: column;
     gap: 15px;
 }
 
-/* Flat fill, rounded corners, no blue, mustard accent on hover */
+.button-group {
+    flex-direction: column;
+}
+
+/* Menu Buttons */
 .menu-btn {
-    background-color: #D9722C; /* Burnt orange */
-    color: #F4ECDD; /* Warm cream */
     border: none;
     padding: 15px 40px;
     font-size: 20px;
     font-weight: bold;
     cursor: pointer;
     border-radius: 8px; 
-    transition: background-color 0.2s, color 0.2s, transform 0.1s;
+    transition: background-color 0.2s, color 0.2s, transform 0.1s, border-color 0.2s;
     outline: none;
 }
 
-.menu-btn:hover {
-    background-color: #E3B23C; /* Mustard accent */
-    color: #211D1B; /* Charcoal text for contrast */
+.primary-btn {
+    background-color: #D9722C;
+    color: #F4ECDD;
+    border: 2px solid transparent;
+}
+
+.primary-btn:hover {
+    background-color: #E3B23C;
+    color: #211D1B;
+}
+
+.secondary-btn {
+    background-color: transparent;
+    color: #F4ECDD;
+    border: 2px solid #E3B23C;
+}
+
+.secondary-btn:hover {
+    background-color: rgba(227, 178, 60, 0.15);
+    color: #E3B23C;
 }
 
 .menu-btn:active {
+    transform: scale(0.95);
+}
+
+/* Back Button */
+.back-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: transparent;
+    border: none;
+    color: #E3B23C;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.1s;
+    outline: none;
+}
+
+.back-btn:hover {
+    color: #F4ECDD; /* Cream on hover for contrast */
+}
+
+.back-btn:active {
     transform: scale(0.95);
 }
 
