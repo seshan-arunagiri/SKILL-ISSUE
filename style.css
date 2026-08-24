@@ -93,6 +93,27 @@ body {
     transform: scale(0.95);
 }
 
+/* Settings Panel */
+.settings-panel {
+    margin-top: 40px;
+    font-size: 18px;
+    color: #F4ECDD;
+}
+
+.settings-panel label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.settings-panel input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #E3B23C; /* Tint checkbox to match palette */
+}
+
 .hidden {
     display: none !important;
 }
