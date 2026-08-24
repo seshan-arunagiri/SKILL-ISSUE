@@ -16,6 +16,9 @@ const screens = {
 
 const playBtn = document.getElementById('playBtn');
 const highScoreBtn = document.getElementById('highScoreBtn');
+const highScoreModal = document.getElementById('highScoreModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+
 const menuBackBtn = document.getElementById('menuBackBtn');
 const pauseBackBtn = document.getElementById('pauseBackBtn');
 const finalScoreEl = document.getElementById('finalScore');
@@ -80,7 +83,7 @@ const MASTER_INNER_MIN = 120;
 const MASTER_INNER_MAX = 480;
 
 // --- Game State ---
-let gameState = 'HOME'; // HOME, MENU, PLAYING, PAUSED, GAME_OVER
+let gameState = 'HOME';
 let currentConfig = null;
 let liveConfig = null;
 let currentDifficultyKey = '';
@@ -90,9 +93,30 @@ let bestScore = 0;
 let escalations = 0;
 let escalationTextEndTime = 0;
 
-// Settings
+// Settings & LocalStorage
 let isMuted = localStorage.getItem('isMuted') === 'true';
 muteToggle.checked = isMuted;
+
+// Use a single JSON object for scores
+let bestScores = { EASY: 0, MEDIUM: 0, HARD: 0, MASTER: 0 };
+try {
+    const stored = JSON.parse(localStorage.getItem('skillIssueScores'));
+    if (stored) {
+        bestScores = { ...bestScores, ...stored };
+    } else {
+        // Fallback for previous implementation tracking
+        if (localStorage.getItem('bestScore_EASY')) bestScores.EASY = parseFloat(localStorage.getItem('bestScore_EASY'));
+        if (localStorage.getItem('bestScore_MEDIUM')) bestScores.MEDIUM = parseFloat(localStorage.getItem('bestScore_MEDIUM'));
+        if (localStorage.getItem('bestScore_HARD')) bestScores.HARD = parseFloat(localStorage.getItem('bestScore_HARD'));
+        if (localStorage.getItem('bestScore_MASTER')) bestScores.MASTER = parseFloat(localStorage.getItem('bestScore_MASTER'));
+    }
+} catch (e) {
+    console.warn("Could not load scores", e);
+}
+
+function saveScores() {
+    localStorage.setItem('skillIssueScores', JSON.stringify(bestScores));
+}
 
 // Timers
 let gameTimeAccumulator = 0;
@@ -113,7 +137,7 @@ const player = {
 };
 
 let obstacles = [];
-let homeObstacles = []; // Decorative background squares for HOME screen
+let homeObstacles = [];
 
 const keys = {
     ArrowUp: false,
@@ -204,9 +228,18 @@ function setupInput() {
         setGameState('MENU');
     });
 
+    // High Score Modal
     highScoreBtn.addEventListener('click', () => {
-        // Reserved for Phase 16
-        console.log("High Score Menu upcoming...");
+        ['EASY', 'MEDIUM', 'HARD', 'MASTER'].forEach(diff => {
+            const span = document.getElementById(`score-${diff}`);
+            const val = bestScores[diff];
+            span.innerText = val > 0 ? Math.round(val) : '—';
+        });
+        highScoreModal.classList.remove('hidden');
+    });
+
+    closeModalBtn.addEventListener('click', () => {
+        highScoreModal.classList.add('hidden');
     });
 
     // Difficulty Menu
@@ -266,16 +299,20 @@ function setGameState(newState) {
     if (newState === 'HOME') {
         initHomeObstacles();
         screens.HOME.classList.remove('hidden');
-        gameContainer.classList.add('hidden'); // Hide game card
+        gameContainer.classList.add('hidden'); 
     } else {
-        gameContainer.classList.remove('hidden'); // Show game card
+        gameContainer.classList.remove('hidden'); 
         if (newState === 'MENU') {
             screens.MENU.classList.remove('hidden');
         } else if (newState === 'PAUSED') {
             screens.PAUSED.classList.remove('hidden');
         } else if (newState === 'GAME_OVER') {
             finalScoreEl.innerText = `Score: ${Math.round(score)}`;
-            bestScoreEl.innerText = `Best: ${Math.round(bestScore)}`;
+            
+            // Format difficulty label, e.g. "EASY" -> "Easy"
+            const diffLabel = currentDifficultyKey.charAt(0).toUpperCase() + currentDifficultyKey.slice(1).toLowerCase();
+            bestScoreEl.innerText = `Best: ${Math.round(bestScore)} (${diffLabel})`;
+            
             screens.GAME_OVER.classList.remove('hidden');
         }
     }
@@ -295,7 +332,8 @@ function startGame(diffKey) {
         predictiveChance: currentConfig.predictiveChance
     };
     
-    bestScore = parseFloat(localStorage.getItem(`bestScore_${diffKey}`)) || 0;
+    // Load score directly from our combined bestScores object
+    bestScore = bestScores[diffKey] || 0;
     
     player.x = CANVAS_WIDTH / 2 - player.width / 2;
     player.y = CANVAS_HEIGHT / 2 - player.height / 2;
@@ -389,13 +427,11 @@ function spawnObstacle() {
 }
 
 function update(deltaTime) {
-    // Background simulation for HOME screen across full viewport
     if (gameState === 'HOME') {
         for (const obs of homeObstacles) {
             obs.x += obs.dx;
             obs.y += obs.dy;
             
-            // Wrap around continuously within the full viewport
             if (obs.x > bgCanvas.width) obs.x = -obs.width;
             if (obs.x < -obs.width) obs.x = bgCanvas.width;
             if (obs.y > bgCanvas.height) obs.y = -obs.height;
@@ -473,9 +509,12 @@ function update(deltaTime) {
             shakeEndTime = Date.now() + 150;
             setGameState('GAME_OVER');
             
+            // Per-difficulty score tracking via the unified JSON object
             if (score > bestScore) {
                 bestScore = score;
-                localStorage.setItem(`bestScore_${currentDifficultyKey}`, bestScore);
+                bestScores[currentDifficultyKey] = score;
+                saveScores();
+                
                 setTimeout(() => playSound('highscore'), 200);
             }
         } else if (!obs.hasCausedCloseCall) {
@@ -506,7 +545,6 @@ function getMilestone(seconds) {
 }
 
 function draw() {
-    // 1. Draw full-viewport background canvas (Home screen animations)
     bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
     if (gameState === 'HOME') {
         bgCtx.fillStyle = COLORS.obstacle;
@@ -516,10 +554,9 @@ function draw() {
             bgCtx.fillRect(obs.x, obs.y, obs.width, obs.height);
             bgCtx.strokeRect(obs.x, obs.y, obs.width, obs.height);
         }
-        return; // Halt main game canvas rendering when on Home screen
+        return; 
     }
 
-    // --- Main Game Canvas Rendering ---
     ctx.save();
 
     if (gameState === 'GAME_OVER' && Date.now() < shakeEndTime) {
@@ -528,11 +565,9 @@ function draw() {
         ctx.translate(dx, dy);
     }
 
-    // Background of game card
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Walls for Master mode
     if (liveConfig && liveConfig.isMaster) {
         ctx.fillStyle = COLORS.walls;
         
@@ -543,7 +578,6 @@ function draw() {
     }
 
     if (gameState !== 'MENU') {
-        // Player
         ctx.fillStyle = COLORS.player;
         let pWidth = player.width;
         let pHeight = player.height;
@@ -564,7 +598,6 @@ function draw() {
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, pWidth, pHeight);
 
-        // Obstacles
         ctx.fillStyle = COLORS.obstacle;
         ctx.strokeStyle = COLORS.obstacleOutline;
         ctx.lineWidth = 1;
@@ -573,13 +606,11 @@ function draw() {
             ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
         }
 
-        // Score
         ctx.fillStyle = COLORS.accent;
         ctx.font = '24px sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText('Score: ' + Math.round(score), 15, 35);
 
-        // Milestone Badge
         const secondsSurvived = gameTimeAccumulator / 1000;
         const badge = getMilestone(secondsSurvived);
         ctx.font = 'bold 16px sans-serif';
@@ -597,7 +628,6 @@ function draw() {
         ctx.fillStyle = (badge.text === 'Legendary') ? '#211D1B' : '#F4ECDD';
         ctx.fillText(badge.text, CANVAS_WIDTH - 20, badgeY + 18);
         
-        // Escalation Text Flash
         if (Date.now() < escalationTextEndTime) {
             const alpha = Math.max(0, (escalationTextEndTime - Date.now()) / 1000);
             ctx.fillStyle = COLORS.accent;

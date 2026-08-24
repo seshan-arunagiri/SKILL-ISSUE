@@ -58,7 +58,7 @@ body {
     color: #F4ECDD;
 }
 
-/* Full Screen Home Overlay */
+/* Full Screen Overlays */
 .full-screen-overlay {
     position: fixed;
     top: 0;
@@ -73,6 +73,70 @@ body {
     background: transparent;
 }
 
+/* High Score Modal Specific */
+#highScoreModal {
+    background-color: rgba(17, 17, 17, 0.9); /* Dim the background behind modal */
+}
+
+.modal-box {
+    position: relative;
+    background-color: #211D1B;
+    border: 2px solid #5C4433; /* Deep umber */
+    padding: 40px;
+    border-radius: 8px;
+    width: 400px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-box h2 {
+    color: #E3B23C;
+    margin-bottom: 30px;
+    margin-top: 0;
+    text-align: center;
+    font-size: 32px;
+}
+
+.close-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: transparent;
+    border: none;
+    color: #F4ECDD;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s;
+    outline: none;
+}
+
+.close-btn:hover {
+    color: #E3B23C;
+}
+
+.score-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.score-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 22px;
+    color: #F4ECDD;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(244, 236, 221, 0.1);
+}
+
+.score-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* Typography & General Layout */
 .logo {
     margin-bottom: 20px;
 }

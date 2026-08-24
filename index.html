@@ -33,6 +33,20 @@
         </div>
     </div>
 
+    <!-- HIGH SCORE MODAL -->
+    <div id="highScoreModal" class="full-screen-overlay hidden" style="z-index: 20;">
+        <div class="modal-box">
+            <button id="closeModalBtn" class="close-btn">&times;</button>
+            <h2>High Scores</h2>
+            <div class="score-list">
+                <div class="score-row"><span>Easy</span><span id="score-EASY">—</span></div>
+                <div class="score-row"><span>Medium</span><span id="score-MEDIUM">—</span></div>
+                <div class="score-row"><span>Hard</span><span id="score-HARD">—</span></div>
+                <div class="score-row"><span>Master</span><span id="score-MASTER">—</span></div>
+            </div>
+        </div>
+    </div>
+
     <!-- GAME CARD -->
     <div id="gameContainer" class="hidden">
         <canvas id="gameCanvas" width="600" height="600"></canvas>
