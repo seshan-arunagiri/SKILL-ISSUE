@@ -151,7 +151,7 @@ body {
 .tagline {
     font-size: 24px;
     color: #F4ECDD;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     font-style: italic;
 }
 
@@ -161,7 +161,36 @@ body {
     color: rgba(244, 236, 221, 0.8);
     font-size: 16px;
     line-height: 1.5;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
+}
+
+.how-to-play {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 30px;
+    width: 450px;
+    text-align: left;
+}
+
+.htp-row {
+    display: flex;
+    align-items: flex-start;
+    color: #F4ECDD;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+.htp-icon {
+    flex-shrink: 0;
+    margin-right: 12px;
+    margin-top: 4px;
+}
+
+.htp-label {
+    color: #E3B23C;
+    font-weight: bold;
+    margin-right: 5px;
 }
 
 .overlay h1 {
