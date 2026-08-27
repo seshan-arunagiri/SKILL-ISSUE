@@ -3,11 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML5 Canvas Game</title>
+    <title>SKILL ISSUE</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <canvas id="gameCanvas" width="600" height="600"></canvas>
+    <canvas id="bgCanvas"></canvas>
+    
+    <!-- FULL-SCREEN HOME SCREEN -->
+    <div id="homeScreen" class="full-screen-overlay">
+        <svg class="logo" width="80" height="80" viewBox="0 0 80 80">
+            <!-- Obstacles converging -->
+            <rect x="15" y="10" width="16" height="16" fill="#A63A3A" stroke="#6E1F1F" stroke-width="1" transform="rotate(25 23 18)" />
+            <rect x="55" y="50" width="16" height="16" fill="#A63A3A" stroke="#6E1F1F" stroke-width="1" transform="rotate(-15 63 58)"/>
+            <rect x="10" y="45" width="16" height="16" fill="#A63A3A" stroke="#6E1F1F" stroke-width="1" transform="rotate(45 18 53)"/>
+            <!-- Player -->
+            <rect x="30" y="30" width="20" height="20" fill="#D9722C" stroke="#F4ECDD" stroke-width="2"/>
+        </svg>
+        <h1 class="title">SKILL ISSUE</h1>
+        <p class="tagline">Survive the swarm.</p>
+        
+        <div class="about-block">
+            Dodge incoming blocks and survive as long as possible across four escalating difficulty levels.<br>
+            Control your square with WASD or arrow keys.
+        </div>
+
+        <div class="how-to-play">
+            <div class="htp-row">
+                <svg width="14" height="14" viewBox="0 0 14 14" class="htp-icon"><rect x="1" y="1" width="12" height="12" fill="#D9722C" stroke="#F4ECDD" stroke-width="1"/></svg>
+                <span><span class="htp-label">Move:</span> WASD / Arrow Keys</span>
+            </div>
+            <div class="htp-row">
+                <svg width="14" height="14" viewBox="0 0 14 14" class="htp-icon"><rect x="1" y="1" width="12" height="12" fill="#D9722C" stroke="#F4ECDD" stroke-width="1"/></svg>
+                <span><span class="htp-label">Goal:</span> Survive as long as possible</span>
+            </div>
+            <div class="htp-row">
+                <svg width="14" height="14" viewBox="0 0 14 14" class="htp-icon"><rect x="1" y="1" width="12" height="12" fill="#D9722C" stroke="#F4ECDD" stroke-width="1"/></svg>
+                <span><span class="htp-label">Difficulty:</span> Easy → Medium → Hard → Master</span>
+            </div>
+            <div class="htp-row">
+                <svg width="14" height="14" viewBox="0 0 14 14" class="htp-icon"><rect x="1" y="1" width="12" height="12" fill="#A63A3A" stroke="#6E1F1F" stroke-width="1"/></svg>
+                <span><span class="htp-label">Watch out:</span> Higher difficulties predict your movement</span>
+            </div>
+        </div>
+
+        <div class="home-btn-group">
+            <button id="playBtn" class="menu-btn primary-btn">Play</button>
+            <button id="highScoreBtn" class="menu-btn secondary-btn">High Score</button>
+        </div>
+    </div>
+
+    <!-- HIGH SCORE MODAL -->
+    <div id="highScoreModal" class="full-screen-overlay hidden" style="z-index: 20;">
+        <div class="modal-box">
+            <button id="closeModalBtn" class="close-btn">&times;</button>
+            <h2>High Scores</h2>
+            <div class="score-list">
+                <div class="score-row"><span>Easy</span><span id="score-EASY">—</span></div>
+                <div class="score-row"><span>Medium</span><span id="score-MEDIUM">—</span></div>
+                <div class="score-row"><span>Hard</span><span id="score-HARD">—</span></div>
+                <div class="score-row"><span>Master</span><span id="score-MASTER">—</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME CARD -->
+    <div id="gameContainer" class="hidden">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        
+        <!-- MENU SCREEN -->
+        <div id="menuScreen" class="overlay hidden">
+            <button id="menuBackBtn" class="back-btn">← Back</button>
+            <h1>Select Difficulty</h1>
+            <div class="button-group">
+                <button class="menu-btn primary-btn" data-diff="EASY">Easy</button>
+                <button class="menu-btn primary-btn" data-diff="MEDIUM">Medium</button>
+                <button class="menu-btn primary-btn" data-diff="HARD">Hard</button>
+                <button class="menu-btn primary-btn" data-diff="MASTER">Master</button>
+            </div>
+            
+            <div class="settings-panel">
+                <label>
+                    <input type="checkbox" id="muteToggle"> Mute Sounds
+                </label>
+            </div>
+        </div>
+
+        <!-- PAUSE SCREEN -->
+        <div id="pauseScreen" class="overlay hidden">
+            <button id="pauseBackBtn" class="back-btn">← Back</button>
+            <h1>Paused</h1>
+            <p>Esc to resume</p>
+        </div>
+
+        <!-- GAME OVER SCREEN -->
+        <div id="gameOverScreen" class="overlay hidden">
+            <h1>GAME OVER</h1>
+            <h2 id="finalScore">Score: 0</h2>
+            <h3 id="bestScoreDisplay">Best: 0</h3>
+            <div class="button-group">
+                <button id="retryBtn" class="menu-btn primary-btn">Retry Same Level</button>
+                <button id="menuBtn" class="menu-btn primary-btn">Play Again (Menu)</button>
+            </div>
+        </div>
+    </div>
     <script src="game.js"></script>
 </body>
 </html>

@@ -5,18 +5,308 @@
     box-sizing: border-box;
 }
 
-/* Center the canvas visually on the page */
 body {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #111111; /* Dark outer background to make the canvas pop */
+    background-color: #111111;
+    background-image: 
+        radial-gradient(circle at center, rgba(227, 178, 60, 0.07) 0%, transparent 60%),
+        radial-gradient(rgba(244, 236, 221, 0.04) 1.5px, transparent 1.5px);
+    background-size: 100% 100%, 24px 24px;
+    background-position: center center, 0 0;
     font-family: sans-serif;
+    overflow: hidden; /* Prevent scrollbars from full viewport background canvas */
 }
 
-/* Game canvas styling */
+#bgCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    pointer-events: none;
+}
+
+#gameContainer {
+    position: relative;
+    width: 600px;
+    height: 600px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 10px 20px rgba(0, 0, 0, 0.6);
+    z-index: 5;
+}
+
 #gameCanvas {
-    background-color: #211D1B; /* Charcoal background as requested */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8); /* Subtle shadow for depth */
+    background-color: #211D1B;
+    display: block;
+}
+
+/* UI Overlays */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(33, 29, 27, 0.85); /* Translucent charcoal */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #F4ECDD;
+}
+
+/* Full Screen Overlays */
+.full-screen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    background: transparent;
+}
+
+/* High Score Modal Specific */
+#highScoreModal {
+    background-color: rgba(17, 17, 17, 0.9); /* Dim the background behind modal */
+}
+
+.modal-box {
+    position: relative;
+    background-color: #211D1B;
+    border: 2px solid #5C4433; /* Deep umber */
+    padding: 40px;
+    border-radius: 8px;
+    width: 400px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-box h2 {
+    color: #E3B23C;
+    margin-bottom: 30px;
+    margin-top: 0;
+    text-align: center;
+    font-size: 32px;
+}
+
+.close-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    background: transparent;
+    border: none;
+    color: #F4ECDD;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s;
+    outline: none;
+}
+
+.close-btn:hover {
+    color: #E3B23C;
+}
+
+.score-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.score-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 22px;
+    color: #F4ECDD;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(244, 236, 221, 0.1);
+}
+
+.score-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* Typography & General Layout */
+.logo {
+    margin-bottom: 20px;
+}
+
+.title {
+    color: #E3B23C !important;
+    font-size: 72px !important;
+    letter-spacing: 4px;
+    margin-bottom: 5px !important;
+}
+
+.tagline {
+    font-size: 24px;
+    color: #F4ECDD;
+    margin-bottom: 20px;
+    font-style: italic;
+}
+
+.about-block {
+    max-width: 500px;
+    text-align: center;
+    color: rgba(244, 236, 221, 0.8);
+    font-size: 16px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.how-to-play {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 30px;
+    width: 450px;
+    text-align: left;
+}
+
+.htp-row {
+    display: flex;
+    align-items: flex-start;
+    color: #F4ECDD;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+.htp-icon {
+    flex-shrink: 0;
+    margin-right: 12px;
+    margin-top: 4px;
+}
+
+.htp-label {
+    color: #E3B23C;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.overlay h1 {
+    margin-bottom: 20px;
+    color: #E3B23C;
+    font-size: 42px;
+}
+
+.overlay h2 {
+    color: #E3B23C;
+    margin-bottom: 5px;
+    font-size: 28px;
+}
+
+.overlay h3 {
+    color: #7A8B69;
+    margin-bottom: 30px;
+    font-size: 22px;
+}
+
+.overlay p {
+    font-size: 22px;
+    color: #F4ECDD;
+}
+
+.button-group, .home-btn-group {
+    display: flex;
+    gap: 15px;
+}
+
+.button-group {
+    flex-direction: column;
+}
+
+/* Menu Buttons */
+.menu-btn {
+    border: none;
+    padding: 15px 40px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 8px; 
+    transition: background-color 0.2s, color 0.2s, transform 0.1s, border-color 0.2s;
+    outline: none;
+}
+
+.primary-btn {
+    background-color: #D9722C;
+    color: #F4ECDD;
+    border: 2px solid transparent;
+}
+
+.primary-btn:hover {
+    background-color: #E3B23C;
+    color: #211D1B;
+}
+
+.secondary-btn {
+    background-color: transparent;
+    color: #F4ECDD;
+    border: 2px solid #E3B23C;
+}
+
+.secondary-btn:hover {
+    background-color: rgba(227, 178, 60, 0.15);
+    color: #E3B23C;
+}
+
+.menu-btn:active {
+    transform: scale(0.95);
+}
+
+/* Back Button */
+.back-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: transparent;
+    border: none;
+    color: #E3B23C;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.1s;
+    outline: none;
+}
+
+.back-btn:hover {
+    color: #F4ECDD; /* Cream on hover for contrast */
+}
+
+.back-btn:active {
+    transform: scale(0.95);
+}
+
+/* Settings Panel */
+.settings-panel {
+    margin-top: 40px;
+    font-size: 18px;
+    color: #F4ECDD;
+}
+
+.settings-panel label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.settings-panel input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #E3B23C; /* Tint checkbox to match palette */
+}
+
+.hidden {
+    display: none !important;
 }
