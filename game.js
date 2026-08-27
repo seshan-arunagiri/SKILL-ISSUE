@@ -214,7 +214,16 @@ function setupInput() {
                 setGameState('PLAYING');
             }
         }
+
+        // R key - restart the game
+        if (e.key.toLowerCase() === 'r') {
+            if (gameState === 'GAME_OVER') {
+                resetGame();
+                setGameState('PLAYING');
+            }
+        }
     });
+}
 
     window.addEventListener('keyup', (e) => {
         if (keys.hasOwnProperty(e.key)) {
