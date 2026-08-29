@@ -138,6 +138,10 @@ const player = {
 
 let obstacles = [];
 let homeObstacles = [];
+let candies = [];
+
+let bonusScore = 0;
+let nextCandySpawnTime = 0;
 
 const keys = {
     ArrowUp: false,
@@ -218,12 +222,10 @@ function setupInput() {
         // R key - restart the game
         if (e.key.toLowerCase() === 'r') {
             if (gameState === 'GAME_OVER') {
-                resetGame();
-                setGameState('PLAYING');
+                startGame(currentDifficultyKey);
             }
         }
     });
-}
 
     window.addEventListener('keyup', (e) => {
         if (keys.hasOwnProperty(e.key)) {
@@ -348,11 +350,14 @@ function startGame(diffKey) {
     player.y = CANVAS_HEIGHT / 2 - player.height / 2;
     
     obstacles = [];
+    candies = [];
     score = 0;
+    bonusScore = 0;
     escalations = 0;
     
     gameTimeAccumulator = 0;
     lastSpawnTime = 0;
+    nextCandySpawnTime = 10000 + Math.random() * 5000;
     shakeEndTime = 0;
     playerPulseEndTime = 0;
     escalationTextEndTime = 0;
@@ -435,6 +440,41 @@ function spawnObstacle() {
     playSound('spawn');
 }
 
+function spawnCandy() {
+    const r = Math.random();
+    let type, color, pts;
+    if (r < 0.6) {
+        type = 'cream'; color = '#F4ECDD'; pts = 20;
+    } else if (r < 0.9) {
+        type = 'sage'; color = '#7A8B69'; pts = 40; // Replaced blue with sage green constraint
+    } else {
+        type = 'golden'; color = '#E3B23C'; pts = 50;
+    }
+
+    const cWidth = 15;
+    const cHeight = 15;
+    
+    let minX = 20, maxX = CANVAS_WIDTH - 20 - cWidth;
+    let minY = 20, maxY = CANVAS_HEIGHT - 20 - cHeight;
+    
+    if (liveConfig && liveConfig.isMaster) {
+        minX = MASTER_INNER_MIN + 20;
+        maxX = MASTER_INNER_MAX - 20 - cWidth;
+        minY = MASTER_INNER_MIN + 20;
+        maxY = MASTER_INNER_MAX - 20 - cHeight;
+    }
+
+    candies.push({
+        x: minX + Math.random() * (maxX - minX),
+        y: minY + Math.random() * (maxY - minY),
+        width: cWidth,
+        height: cHeight,
+        color: color,
+        points: pts,
+        despawnTime: gameTimeAccumulator + 6000 // Lasts 6 seconds
+    });
+}
+
 function update(deltaTime) {
     if (gameState === 'HOME') {
         for (const obs of homeObstacles) {
@@ -486,6 +526,34 @@ function update(deltaTime) {
         if (player.x + player.width > CANVAS_WIDTH) player.x = CANVAS_WIDTH - player.width;
         if (player.y < 0) player.y = 0;
         if (player.y + player.height > CANVAS_HEIGHT) player.y = CANVAS_HEIGHT - player.height;
+    }
+
+    // --- Candy System ---
+    if (gameTimeAccumulator > nextCandySpawnTime) {
+        spawnCandy();
+        nextCandySpawnTime = gameTimeAccumulator + 10000 + Math.random() * 10000;
+    }
+
+    for (let i = candies.length - 1; i >= 0; i--) {
+        const c = candies[i];
+        
+        if (gameTimeAccumulator > c.despawnTime) {
+            candies.splice(i, 1);
+            continue;
+        }
+
+        const isColliding = (
+            player.x < c.x + c.width &&
+            player.x + player.width > c.x &&
+            player.y < c.y + c.height &&
+            player.y + player.height > c.y
+        );
+
+        if (isColliding) {
+            bonusScore += c.points;
+            candies.splice(i, 1);
+            playSound('highscore'); // Play rewarding sound
+        }
     }
 
     // --- Obstacle Spawning ---
@@ -542,7 +610,7 @@ function update(deltaTime) {
     }
 
     // --- Score Update ---
-    score = (gameTimeAccumulator / 1000) * liveConfig.scoreRate;
+    score = (gameTimeAccumulator / 1000) * liveConfig.scoreRate + bonusScore;
 }
 
 function getMilestone(seconds) {
@@ -613,6 +681,24 @@ function draw() {
         for (const obs of obstacles) {
             ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
             ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+        }
+
+        // Draw Candies
+        for (const c of candies) {
+            ctx.fillStyle = c.color;
+            
+            // Blink when about to despawn
+            const timeRemaining = c.despawnTime - gameTimeAccumulator;
+            if (timeRemaining < 2000) {
+                if (Math.floor(timeRemaining / 200) % 2 === 0) {
+                    ctx.globalAlpha = 0.5;
+                }
+            }
+
+            ctx.beginPath();
+            ctx.arc(c.x + c.width / 2, c.y + c.height / 2, c.width / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
         }
 
         ctx.fillStyle = COLORS.accent;
